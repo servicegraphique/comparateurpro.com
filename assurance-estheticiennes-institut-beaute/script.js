@@ -1,335 +1,3 @@
-/*__LOCAL_SHIM__ v2 — neutralise les appels réseau externes en environnement
-   local (formulaires Webflow, OTP hellolead, Google Sheets/Apps Script, GTM,
-   Google Fonts, Turnstile, pixels…) et simule la réussite des soumissions
-   de formulaires (voir section 7). Inactif hors local : le déploiement
-   serveur n'est pas impacté. Design et style.css inchangés. */
-(function () {
-  'use strict';
-  try {
-    if (window.__LOCAL_SHIM__) { return; }
-    var host = location.hostname || '';
-    var forced = false;
-    try { forced = localStorage.getItem('localShim') === '1'; } catch (e) {}
-    var isLocal = !host || host === 'localhost' || host === '127.0.0.1' ||
-      host === '[::1]' || /\.e2b\.app$/.test(host) || /\.local$/.test(host);
-    if (!isLocal && !forced) { return; }
-    window.__LOCAL_SHIM__ = 1;
-
-    var TAG = '[local-shim]';
-
-    /* dataLayer / gtag : on garde la couche de données locale (sans réseau)
-       pour que les scripts de consentement des pages ne cassent pas. */
-    window.dataLayer = window.dataLayer || [];
-    if (typeof window.gtag !== 'function') {
-      window.gtag = function () { (window.dataLayer = window.dataLayer || []).push(arguments); };
-    }
-
-    function isExternal(url) {
-      if (typeof url !== 'string' || url === '') { return false; }
-      try {
-        var u = new URL(url, location.href);
-        if (u.protocol === 'data:' || u.protocol === 'blob:' || u.protocol === 'about:') { return false; }
-        if (u.protocol === 'file:' ) { return false; }
-        return u.origin !== location.origin;
-      } catch (e) { return false; }
-    }
-
-    /* Réponse simulée : JSON « polyvalent » (ok/success/status/resultat)
-       pour les API, script vide pour les .js distants. */
-    function bodyFor(url) {
-      if (/\.js(\?|#|$)|\/gtm\.js|\/gtag\.js|api\.js|typekit|fontdeck|brandjs/i.test(url)) {
-        return { ct: 'application/javascript; charset=utf-8',
-                 text: '/* ' + TAG + ' script externe neutralisé */' };
-      }
-      return { ct: 'application/json; charset=utf-8',
-               text: JSON.stringify({
-                 ok: true, success: true, status: 'ok', statusText: 'ok',
-                 result: 'success', error: false,
-                 message: TAG + ' reponse simulee (usage local)',
-                 redirectTo: null
-               }) };
-    }
-    function log(method, url) {
-      try { console.info(TAG, method, '->', url); } catch (e) {}
-    }
-
-    /* 1) XMLHttpRequest — intercepte $.ajax (jQuery), les appels OTP
-          hellolead, l'API Webflow forms, Apps Script, le CRM UBEPRO… */
-    var origOpen = XMLHttpRequest.prototype.open;
-    var origSend = XMLHttpRequest.prototype.send;
-    XMLHttpRequest.prototype.open = function (method, url) {
-      this.__shimUrl = url;
-      this.__shimMethod = method;
-      return origOpen.apply(this, arguments);
-    };
-    XMLHttpRequest.prototype.send = function () {
-      var self = this;
-      if (!isExternal(self.__shimUrl)) { return origSend.apply(this, arguments); }
-      log(self.__shimMethod || 'XHR', self.__shimUrl);
-      var b = bodyFor(String(self.__shimUrl));
-      try {
-        self.getResponseHeader = function (n) {
-          return /content-type/i.test(n || '') ? b.ct : null;
-        };
-        self.getAllResponseHeaders = function () {
-          return 'content-type: ' + b.ct + '\r\n';
-        };
-        Object.defineProperty(self, 'readyState', { configurable: true, value: 4 });
-        Object.defineProperty(self, 'status', { configurable: true, value: 200 });
-        Object.defineProperty(self, 'statusText', { configurable: true, value: 'OK' });
-        Object.defineProperty(self, 'responseText', { configurable: true, value: b.text });
-        Object.defineProperty(self, 'response', { configurable: true, value: b.text });
-        Object.defineProperty(self, 'responseURL', { configurable: true, value: String(self.__shimUrl) });
-      } catch (e) { console.warn(TAG, e); }
-      setTimeout(function () {
-        try {
-          self.dispatchEvent(new Event('readystatechange'));
-          self.dispatchEvent(new Event('load'));
-          self.dispatchEvent(new Event('loadend'));
-        } catch (e) { console.warn(TAG, e); }
-      }, 10);
-    };
-
-    /* 2) fetch — CRM UBEPRO, OTP hellolead, Google Sheets, endpoints divers.
-          Ambiances sans fetch/Response (jsdom, tests) : polyfills minimaux
-          pour que les flux type OTP ne lèvent pas « fetch is not defined ».
-          Navigateur natif : inchangé (wrapping d'origine conservé). */
-    if (typeof window.Response !== 'function') {
-      window.Response = function (body, init) {
-        init = init || {};
-        this._body = (body === undefined || body === null) ? '' : String(body);
-        this.status = init.status || 200;
-        this.ok = this.status >= 200 && this.status < 300;
-        var headers = init.headers || {};
-        this.headers = {
-          get: function (n) {
-            var want = String(n || '').toLowerCase();
-            for (var k in headers) {
-              if (k.toLowerCase() === want) { return headers[k]; }
-            }
-            return null;
-          }
-        };
-      };
-      window.Response.prototype.text = function () {
-        return Promise.resolve(this._body);
-      };
-      window.Response.prototype.json = function () {
-        try { return Promise.resolve(JSON.parse(this._body)); }
-        catch (e) { return Promise.reject(e); }
-      };
-    }
-    if (typeof window.fetch !== 'function') {
-      window.fetch = function (input) {
-        var url = (typeof input === 'string') ? input
-                : (input && typeof input.url === 'string') ? input.url : '';
-        var method = (input && input.method) || 'GET';
-        if (url && isExternal(url)) {
-          log('FETCH', url);
-          var b = bodyFor(url);
-          return Promise.resolve(new window.Response(b.text, {
-            status: 200, headers: { 'Content-Type': b.ct }
-          }));
-        }
-        return new Promise(function (resolve, reject) {
-          try {
-            var x = new XMLHttpRequest();
-            x.open(method, url, true);
-            x.onload = function () {
-              resolve(new window.Response(x.responseText, {
-                status: x.status || 200,
-                headers: { 'Content-Type':
-                  x.getResponseHeader('Content-Type') || 'text/html; charset=utf-8' }
-              }));
-            };
-            x.onerror = function () { reject(new Error('fetch local: échec réseau')); };
-            x.send((input && input.body) || null);
-          } catch (e) { reject(e); }
-        });
-      };
-    } else {
-      var origFetch = window.fetch;
-      window.fetch = function (input) {
-        var url = (typeof input === 'string') ? input
-                : (input && typeof input.url === 'string') ? input.url : null;
-        if (url && isExternal(url)) {
-          log('FETCH', url);
-          var b = bodyFor(url);
-          try {
-            return Promise.resolve(new Response(b.text, {
-              status: 200, headers: { 'Content-Type': b.ct }
-            }));
-          } catch (e) {
-            return Promise.reject(e);
-          }
-        }
-        return origFetch.apply(this, arguments);
-      };
-    }
-
-    /* 3) sendBeacon — pixels & replis « beacon » des API. */
-    if (navigator.sendBeacon) {
-      var origBeacon = navigator.sendBeacon.bind(navigator);
-      navigator.sendBeacon = function (url) {
-        if (isExternal(url)) { log('BEACON', url); return true; }
-        return origBeacon.apply(null, arguments);
-      };
-    }
-
-    /* 4) new Image() / img.src — pixels de tracking (FB, Google Ads…). */
-    try {
-      var srcDesc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
-      if (srcDesc && srcDesc.set) {
-        Object.defineProperty(HTMLImageElement.prototype, 'src', {
-          configurable: true,
-          get: srcDesc.get,
-          set: function (v) {
-            if (isExternal(v)) {
-              log('IMG', v);
-              var self = this;
-              setTimeout(function () {
-                try { self.dispatchEvent(new Event('load')); } catch (e) {}
-              }, 0);
-              return;
-            }
-            return srcDesc.set.call(this, v);
-          }
-        });
-      }
-    } catch (e) {}
-
-    /* 5) Injection dynamique de <script src> / <link rel=stylesheet> externes :
-          Google Fonts (WebFont.load), Turnstile, fontdeck/typekit, brand.js,
-          gtm.js, taggy… On n'attache pas l'élément et on déclenche « load »
-          pour que les callbacks avancent (fontes locales prises en charge par
-          fonts-global.css). */
-    function blockedNode(node) {
-      if (!node || node.nodeType !== 1) { return false; }
-      var t = String(node.tagName || '').toUpperCase();
-      if (t === 'SCRIPT') { return isExternal(node.getAttribute('src')); }
-      if (t === 'LINK') {
-        var rel = String(node.getAttribute('rel') || '').toLowerCase();
-        if (rel.indexOf('stylesheet') >= 0 || rel.indexOf('modulepreload') >= 0 ||
-            rel.indexOf('preload') >= 0 || rel.indexOf('prefetch') >= 0) {
-          return isExternal(node.getAttribute('href'));
-        }
-      }
-      return false;
-    }
-    function fakeLoad(node) {
-      setTimeout(function () {
-        try { node.dispatchEvent(new Event('load')); } catch (e) {}
-      }, 10);
-    }
-    var origAppend = Node.prototype.appendChild;
-    var origInsert = Node.prototype.insertBefore;
-    Node.prototype.appendChild = function (node) {
-      if (blockedNode(node)) {
-        log('SCRIPT/LINK', node.getAttribute('src') || node.getAttribute('href'));
-        fakeLoad(node);
-        return node;
-      }
-      return origAppend.call(this, node);
-    };
-    Node.prototype.insertBefore = function (node, ref) {
-      if (blockedNode(node)) {
-        log('SCRIPT/LINK', node.getAttribute('src') || node.getAttribute('href'));
-        fakeLoad(node);
-        return node;
-      }
-      return origInsert.call(this, node, ref);
-    };
-
-    /* 6) Turnstile (Cloudflare) : stub local — callback immédiat. */
-    if (typeof window.turnstile === 'undefined') {
-      window.turnstile = {
-        render: function (el, opts) {
-          opts = opts || {};
-          if (typeof opts.callback === 'function') {
-            setTimeout(function () { opts.callback('local-shim-token'); }, 0);
-          }
-          return 'local-shim-widget';
-        },
-        remove: function () {}, reset: function () {},
-        getResponse: function () { return 'local-shim-token'; },
-        isExpired: function () { return false; }
-      };
-    }
-
-    /* 7) Formulaires : l'export Webflow n'embarque PAS le client de
-          soumission native (API formdata) ; pour un <form> sans action
-          externe, webflow.js enregistre un handler d'échec direct qui
-          bascule le bloc d'erreur .w-form-fail — sans tenter le moindre
-          appel réseau (comportement identique hors local : préexistant à
-          toute neutralisation). On remplace ce handler par une réussite
-          simulée : .w-form-done affiché, data-redirect mappé vers le
-          dossier local quand il existe (table FORM_REDIRECTS générée par
-          localize.py). Les blocs .w-form-fail ont en outre été supprimés
-          du HTML (phase nofail) : l'erreur ne peut plus s'afficher. */
-    var FORM_REDIRECTS = {"https://devis.comparateurpro.fr/sage-gestion-de-paie-typ/": null, "https://www.comparateurpro.fr/alfaromeo/tonale-remerciement": "../alfaromeo-tonale-remerciement/", "https://www.comparateurpro.fr/edenred-typ": "../edenred-typ/", "https://www.comparateurpro.fr/mercedes-vous-remercie": "../mercedes-vous-remercie/", "https://www.comparateurpro.fr/mitsubishi-fuso-remerciement": "../mitsubishi-fuso-remerciement/", "https://www.comparateurpro.fr/panneaux-photovoltaiques/panneaux-photovoltaique-valider": "../panneaux-photovoltaiques-panneaux-photovoltaique-valider/", "https://www.comparateurpro.fr/paritel-typ": "../paritel-typ/", "https://www.comparateurpro.fr/radius-remerciement": "../radius-remerciement/", "https://www.comparateurpro.fr/radius-telematics-typ": "../radius-telematics-typ/"};
-    function localFormSuccess(s) {
-      try {
-        if (s && s.evt && typeof s.evt.preventDefault === 'function') {
-          s.evt.preventDefault();
-        }
-      } catch (e) {}
-      try {
-        if (s) {
-          s.success = true;
-          if (s.redirect) {
-            var to = (FORM_REDIRECTS && FORM_REDIRECTS[s.redirect]) || null;
-            if (to) { location.href = to; return; }
-            if (!/^https?:\/\//i.test(s.redirect)) {
-              location.href = s.redirect; return;
-            }
-            console.info(TAG, 'data-redirect sans equivalent local — succes affiche.');
-          }
-          if (s.done && s.done.length) { s.done.toggle(true); }
-          if (s.fail && s.fail.length) { s.fail.toggle(false); }
-          if (s.form && s.form.length) { s.form.toggle(false); }
-        }
-        console.info(TAG, 'form soumis — succes simule (usage local).');
-      } catch (e) { console.warn(TAG, e); }
-    }
-    (function installLocalForms() {
-      var tries = 0;
-      (function tick() {
-        tries += 1;
-        var $ = window.jQuery, patched = 0;
-        try {
-          if ($ && typeof $.data === 'function') {
-            $('form').each(function () {
-              var datas = $.data(this);
-              if (!datas) { return; }
-              for (var key in datas) {
-                var s = datas[key];
-                if (s && typeof s === 'object' && s.form && s.done &&
-                    typeof s.handler === 'function' &&
-                    s.handler !== localFormSuccess) {
-                  s.handler = localFormSuccess;
-                  patched += 1;
-                }
-              }
-            });
-          }
-        } catch (e) { console.warn(TAG, e); }
-        if (patched) { return; }
-        if (tries < 100 && document.querySelector('form')) {
-          setTimeout(tick, 100);
-        } else if (tries < 100 && document.readyState !== 'complete') {
-          setTimeout(tick, 100);
-        }
-      })();
-    })();
-
-    console.info(TAG, 'actif — appels reseau externes neutralises (usage local).');
-  } catch (e) { console.error(TAG, e); }
-})();
-
-
-
-
-
 /* script.js — jQuery + webflow.js + scripts de la page (ordre conservé,
    isolés par try/catch : un script en échec ne bloque pas les autres) */
 /* chunk 0 */
@@ -356,7 +24,16 @@ try {
   var PAGE_URL_KEY = 'ubepro_tracking_page_url_v1';
   var PARENT_URL_KEY = 'ubepro_public_landing_url_v1';
   var PARENT_BRIDGE_CHANNEL = 'ubepro-assurance-v1';
-  var ALLOWED_PARENT_ORIGINS = ['https://www.comparateurpro.fr'];
+  var ALLOWED_PARENT_ORIGINS = [
+    'https://www.comparateurpro.fr',
+    'https://assurance-estheticiennes-instituts-beaute.lp.comparateurpro.fr'
+  ];
+  function isAllowedLandingUrl(url) {
+    var pathname = url.pathname.replace(/\/+$/, '') || '/';
+    return (url.origin === 'https://www.comparateurpro.fr' &&
+      ['/assurance-estheticiennes-instituts-beaute', '/assurance-consultant-societe-conseil'].indexOf(pathname) !== -1) ||
+      (url.origin === 'https://assurance-estheticiennes-instituts-beaute.lp.comparateurpro.fr' && pathname === '/');
+  }
   var parentBridgeNonce = '';
   var pendingSmsRequests = Object.create(null);
   function isAllowedParentOrigin(origin) {
@@ -376,7 +53,7 @@ try {
   var parentLandingUrlReceived = window.parent === window;
   try {
     var initialEntry = new URL(entryUrl);
-    if (isAllowedParentOrigin(initialEntry.origin) && initialEntry.pathname.replace(/\/+$/, '') === '/assurance-consultant-societe-conseil') {
+    if (isAllowedLandingUrl(initialEntry)) {
       parentLandingUrlReceived = true;
     }
   } catch (error) {}
@@ -576,14 +253,14 @@ try {
   function getCurrentUrlCategory() {
     var current = parseUrlParams(window.location.href);
     var entry = parseUrlParams(entryUrl);
-    return current.categorie || current.utm_category || current.ltm_category || current.category ||
-      entry.categorie || entry.utm_category || entry.ltm_category || entry.category || '';
+    return entry.categorie || entry.utm_category || entry.ltm_category || entry.category ||
+      current.categorie || current.utm_category || current.ltm_category || current.category || '';
   }
 
   function getTrackingPayload() {
     if (trackingGranted()) {
-      captureTracking(entryUrl);
       captureTracking(window.location.href);
+      captureTracking(entryUrl);
     }
     var result = {};
     TRACKING_DEFS.forEach(function (def) {
@@ -619,8 +296,7 @@ try {
     if (!trackingGranted()) return '';
     try {
       var url = new URL(String(rawUrl || ''));
-      if (!isAllowedParentOrigin(url.origin)) return '';
-      if (url.pathname.replace(/\/+$/, '') !== '/assurance-consultant-societe-conseil') return '';
+      if (!isAllowedLandingUrl(url)) return '';
       return filterUrlByConsent(url.href);
     } catch (error) {
       return '';
@@ -684,8 +360,8 @@ try {
     }
     try { sessionStorage.setItem(PARENT_URL_KEY, entryUrl); } catch (error) {}
     if (categoryField) {
-      var category = getCurrentUrlCategory();
-      if (category) categoryField.value = category;
+      var category = analyticsGranted() ? getCurrentUrlCategory() : '';
+      categoryField.value = category || initialCategory;
     }
   }
 
@@ -829,7 +505,8 @@ try {
   var smsCountdown = null;
   var submissionId = makeId();
   var categoryField = form.querySelector('[name="categorie"]');
-  if (categoryField && getCurrentUrlCategory()) categoryField.value = getCurrentUrlCategory();
+  var initialCategory = categoryField ? String(categoryField.defaultValue || '').trim() : '';
+  if (categoryField && analyticsGranted() && getCurrentUrlCategory()) categoryField.value = getCurrentUrlCategory();
 
   form.querySelectorAll('input, select, textarea').forEach(function (field) {
     originalRequired.set(field, field.required);
@@ -1115,6 +792,7 @@ try {
       prenom: data.prenom || '',
       mail: data.mail || '',
       telephone: data.telephone || '',
+      telephone_verifie: data.telephone_verifie || 'non',
       societe: data.societe || '',
       code_postal: data.code_postal || '',
       ville: '',
@@ -1192,9 +870,9 @@ try {
   }
 
   function smsSucceeded(result) {
-    if (!result.ok || smsStatusCode(result) >= 400) return false;
-    var data = result.data || {};
-    if (data.ok === false || data.success === false) return false;
+    var data = result.data;
+    if (!result.ok || smsStatusCode(result) >= 400 || !data || typeof data !== 'object' || Array.isArray(data) || Object.keys(data).length === 0) return false;
+    if (data.ok === false || data.success === false || data.error === true) return false;
     var state = String(data.status || data.statut || '').toLowerCase();
     return !/^(error|erreur|ko|failed|fail)$/.test(state);
   }
@@ -1266,6 +944,8 @@ try {
     var codeWrap = box.querySelector('.sms-code-wrap');
     var codeInput = box.querySelector('.sms-code');
     var message = box.querySelector('.sms-message');
+    // Ignore les réponses d’une requête devenue obsolète après changement de numéro.
+    var smsRequestGeneration = 0;
     var flag = form.querySelector('input[name="telephone_verifie"]');
     if (!flag) {
       flag = document.createElement('input');
@@ -1306,9 +986,15 @@ try {
         return;
       }
       requestedPhone = number;
+      smsVerified = false;
+      verifiedPhone = '';
+      flag.value = 'non';
+      updateNextButton();
+      var generation = ++smsRequestGeneration;
       sendButton.disabled = true;
       say('Envoi en cours…', true);
       smsRequest({ action: 'envoyer_code', telephone: number }).then(function (result) {
+        if (generation !== smsRequestGeneration || currentPhone() !== number) return;
         if (smsSucceeded(result)) {
           codeWrap.hidden = false;
           codeInput.value = '';
@@ -1331,6 +1017,7 @@ try {
           sendButton.textContent = 'Recevoir le code';
         }
       }).catch(function () {
+        if (generation !== smsRequestGeneration || currentPhone() !== number) return;
         say('Connexion impossible au service SMS. Vérifiez l’origine autorisée puis réessayez.');
         sendButton.disabled = false;
       });
@@ -1342,8 +1029,14 @@ try {
       if (!/^0[67]\d{8}$/.test(number)) return say('Vérifiez le numéro de téléphone saisi.');
       if (number !== requestedPhone) return say('Le numéro a changé. Demandez un nouveau code.');
       if (code.length !== 6) return say('Le code comporte 6 chiffres.');
+      smsVerified = false;
+      verifiedPhone = '';
+      flag.value = 'non';
+      updateNextButton();
+      var generation = ++smsRequestGeneration;
       checkButton.disabled = true;
       smsRequest({ action: 'verifier_code', telephone: number, code: code }).then(function (result) {
+        if (generation !== smsRequestGeneration || currentPhone() !== number || requestedPhone !== number) return;
         checkButton.disabled = false;
         if (smsSucceeded(result)) {
           smsVerified = true;
@@ -1359,6 +1052,7 @@ try {
           say(smsErrorText(result));
         }
       }).catch(function () {
+        if (generation !== smsRequestGeneration || currentPhone() !== number || requestedPhone !== number) return;
         checkButton.disabled = false;
         say('Connexion impossible au service de vérification. Réessayez.');
       });
@@ -1380,6 +1074,8 @@ try {
       if (phone.value !== formatted) phone.value = formatted;
       var number = currentPhone();
       if ((smsVerified && number !== verifiedPhone) || (requestedPhone && number !== requestedPhone)) {
+        smsRequestGeneration += 1;
+        checkButton.disabled = false;
         smsVerified = false;
         verifiedPhone = '';
         requestedPhone = '';
@@ -1458,8 +1154,6 @@ try {
     var recapField = form.querySelector('[name="autre_info_fj"]');
     if (recapField) recapField.value = data.autre_info_fj;
     debugLog('Payload CRM/Sheets préparé.', { formId: formConfig.formId, categorie: data.categorie });
-    // Déclencher l’événement de conversion dès la soumission valide, comme demandé.
-    pushLeadEvents(data);
 
     var crmDelivery = sendCrm(data).then(function (result) {
       return { ok: true, result: result };
@@ -1478,14 +1172,15 @@ try {
       var delivery = {
         crmStatus: crm.ok ? crm.result.state : 'error',
         sheetStatus: sheet.ok ? sheet.result.state : 'error',
-        confirmed: sheet.ok && sheet.result.confirmed === true,
+        confirmed: (crm.ok && crm.result.confirmed === true) || (sheet.ok && sheet.result.confirmed === true),
         crmError: crm.ok ? null : crm.error,
         sheetError: sheet.ok ? null : sheet.error
       };
       if (!crm.ok) debugLog('Échec du transport CRM.', crm.error);
       if (!sheet.ok) debugLog('Échec du transport Google Sheets.', sheet.error);
 
-      if (crm.ok || sheet.ok) {
+      if (delivery.confirmed) {
+        pushLeadEvents(data);
         showDone(delivery);
       } else {
         sending = false;
@@ -1498,7 +1193,9 @@ try {
   function buildCrmData() {
     var answers = summaryAndAnswers();
     var tracking = getTrackingPayload();
-    var category = getCurrentUrlCategory() || textValue('categorie') || tracking.categorie || '';
+    var category = analyticsGranted()
+      ? (getCurrentUrlCategory() || textValue('categorie') || tracking.categorie || '')
+      : initialCategory;
     var campaignSource = tracking.ltm_source || tracking.utm_source || tracking.source || formConfig.source;
     var data = {
       nom: textValue('nom'),
@@ -1580,6 +1277,11 @@ try {
       current -= 1;
       render(true);
     }
+  });
+
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    next.click();
   });
 
   form.addEventListener('keydown', function (event) {

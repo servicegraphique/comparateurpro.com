@@ -145,6 +145,7 @@ def report(rows):
         counts['gtm'] += bool(r['gtm'])
     out = [
         '# Audit des fonctionnalités par page', '',
+        '> **Limite :** ce contrôle reconnaît le modèle standard, mais pas automatiquement les parcours spécifiques. Voir [RAPPORT-PREMIER-COMMIT.md](RAPPORT-PREMIER-COMMIT.md). Les résultats de tests ci-dessous décrivent la version auditée précédemment.', '',
         f"Date de l'audit : {date.today().isoformat()} — branche et fichiers locaux. Génération : `python3 tools/audit_fonctionnalites.py`.", '',
         '## Résumé', '',
         f"- **{counts['pages']} pages** `*/index.html` examinées ; les pages générées dynamiquement ou en dehors de ce niveau ne sont pas couvertes.",
