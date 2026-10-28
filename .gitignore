@@ -2,3 +2,6 @@
 fontsrc/
 .verify/
 __pycache__/
+
+# Dépendances du banc JavaScript
+tests/node_modules/

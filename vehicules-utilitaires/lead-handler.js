@@ -13,8 +13,8 @@
      sessionStorage, FILTRE PAR CONSENTEMENT (banniere existante,
      cookie "user_cookie_preferences") : analytics = utm/ltm/page_url,
      marketing = click IDs + user_data (conversions ameliorees).
-   - Pont iframe Webflow (landing-url apres consentement) SANS SMS :
-     aucun endpoint de code, recuperation du contact uniquement.
+   - Pont iframe Webflow pour landing-url apres consentement ; verification
+     SMS par le module separe verification-sms.js (appel direct a l'API).
    - Interception de l'envoi simule jQuery (Formly $form.submit()) +
      capture native. APIs QA : window.lpLead, window.lpTracking.
    ===================================================================== */
@@ -67,6 +67,9 @@ var UBE_CONFIG = {
     }
     return null;
   }
+  // Conserver la catégorie métier initiale, sans reprendre une campagne non consentie.
+  var categoryField = fieldEl('categorie');
+  var initialCategory = categoryField ? String(categoryField.value || '').trim() : '';
   var phone = fieldEl('telephone');
   var btn = form.querySelector('.bouton-valider') || form.querySelector('[data-form="submit-btn"]') || form.querySelector('input[type="submit"]');
   var done = wrap ? wrap.querySelector('.w-form-done') : null;
@@ -307,6 +310,7 @@ var UBE_CONFIG = {
     return Object.assign({}, trackingValues);
   }
   function getCurrentUrlCategory() {
+    if (!analyticsGranted()) return '';
     var current = parseUrlParams(window.location.href);
     var entry = parseUrlParams(entryUrl);
     return current.categorie || current.utm_category || current.ltm_category || current.category ||
@@ -485,15 +489,18 @@ var UBE_CONFIG = {
       return libs.join(', ');
     }
     var radio = radioValue('reponse_' + num);
-    if (radio) return radio;
     var champs = form.querySelectorAll('[name="reponse_' + num + '"]');
+    var textes = [];
     for (var j = 0; j < champs.length; j++) {
       var t = (champs[j].type || '').toLowerCase();
       if (t === 'radio' || t === 'checkbox' || t === 'hidden') continue;
       var v = String(champs[j].value || '').trim();
-      if (v) return v;
+      if (v && textes.indexOf(v) === -1) textes.push(v);
     }
-    return '';
+    // Certaines pages donnent le meme nom au choix radio et au champ libre.
+    // Garder les deux si les deux ont ete saisis, au lieu de perdre le texte.
+    if (radio && textes.indexOf(radio) === -1) textes.unshift(radio);
+    return textes.join(' / ');
   }
   function numerosQuestions() {
     var nums = [];
@@ -535,7 +542,9 @@ var UBE_CONFIG = {
     if (champExiste('civilite')) data.civilite = radioValue('civilite') || textValue('civilite');
     if (champExiste('siret')) data.siret = textValue('siret');
     data.source = tracking.ltm_source || tracking.utm_source || tracking.source || CONFIG.source;
-    data.categorie = getCurrentUrlCategory() || textValue('categorie') || tracking.categorie || '';
+    data.categorie = analyticsGranted()
+      ? (getCurrentUrlCategory() || textValue('categorie') || tracking.categorie || '')
+      : initialCategory;
     data.coordonnee = textValue('coordonnee') || '1';
     data.consentement = String(radioValue('consentement')).toLowerCase() === 'oui' ? 'oui' : 'non';
 
@@ -756,15 +765,27 @@ var UBE_CONFIG = {
       });
       localStorage.setItem('source', (data.source || '') + ' TYP');
     } catch (e) {}
+    var target = redirectTarget();
+    if (target) window.setTimeout(function () { location.href = target; }, 3000);
+  }
+
+  // Rediriger uniquement APRES confirmation, sans laisser une URL de campagne
+  // envoyer le visiteur vers une origine non autorisee.
+  function redirectTarget() {
     try {
       var link = new URLSearchParams(location.search).get('ltm_typ') ||
         parseUrlParams(entryUrl).ltm_typ || '';
       if (link) {
-        window.setTimeout(function () {
-          location.href = location.protocol + '//' + location.hostname + '/' + link;
-        }, 3000);
+        var campaign = new URL('/' + link, location.origin);
+        if (campaign.origin === location.origin && /^https?:$/.test(campaign.protocol)) return campaign.href;
+        return '';
       }
+      var original = form.getAttribute('data-redirect') || form.getAttribute('redirect') || '';
+      if (!original) return '';
+      var target = new URL(original, location.href);
+      if (target.origin === location.origin || target.origin === 'https://www.comparateurpro.fr') return target.href;
     } catch (e) {}
+    return '';
   }
 
   function submitLead() {
@@ -816,9 +837,6 @@ var UBE_CONFIG = {
     var recapField = form.querySelector('[name="autre_info_fj"]');
     if (recapField) recapField.value = data.autre_info_fj;
     debugLog('Payload CRM/Sheets pr\u00e9par\u00e9.', { formId: CONFIG.formId, categorie: data.categorie });
-    pushLeadEvents(data);
-    sauvegarderEtRediriger(data);
-
     var crmDelivery = sendCrm(data).then(function (result) {
       return { ok: true, result: result };
     }).catch(function (error) { return { ok: false, error: error }; });
@@ -831,7 +849,10 @@ var UBE_CONFIG = {
       var sheet = results[1];
       if (!crm.ok) debugLog('\u00c9chec du transport CRM.', crm.error);
       if (!sheet.ok) debugLog('\u00c9chec du transport Google Sheets.', sheet.error);
-      if (crm.ok || sheet.ok) {
+      // Un beacon accepté ou une réponse opaque ne confirme pas la réception.
+      if ((crm.ok && crm.result.confirmed) || (sheet.ok && sheet.result.confirmed)) {
+        pushLeadEvents(data);
+        sauvegarderEtRediriger(data);
         showMerci();
       } else {
         sending = false;
@@ -881,6 +902,7 @@ var UBE_CONFIG = {
       return { payload: { formId: CONFIG.formId, id: submissionId, data: buildData() } };
     },
     googleSheetPreview: function () { return buildSheetData(buildData()); },
+    redirectPreview: redirectTarget,
     tracking: window.lpTracking.inspect
   });
   /* Aliases historiques du site ubepro (retrocompatibilite) */
