@@ -70,15 +70,17 @@ def config_value(code, key):
     return m.group(1) if m else ''
 
 
-def selected_sms_phone(page):
-    # Miroir de l'ordre de recherche actuel de verification-sms.js.
-    for field in page.inputs:
+def selected_sms_phone(page, form=None):
+    # Les modules multi-formulaires recherchent le téléphone dans chaque formulaire.
+    fields = [field for field in page.inputs if form is None or field['form'] is form]
+    for field in fields:
         if field['tag'] != 'input' or not field['name']:
             continue
         n = re.sub(r'[\s_-]+', '', field['name'].lower())
         if n in ('telephone', 'phone', 'tel', 'tlphone') or re.fullmatch(r'telephone\d+', n):
             return field
-    return next((field for field in page.inputs if field['tag'] == 'input' and field['type'] == 'tel'), None)
+    return next((field for field in fields if field['tag'] == 'input' and field['type'] == 'tel'
+                 and not re.sub(r'[\s_-]+', '', field['name'].lower()).startswith('codepostal')), None)
 
 
 def analyse(path):
@@ -97,8 +99,13 @@ def analyse(path):
     handler_loaded = 'lead-handler.js' in script_order and bool(handler)
     sms_loaded = 'verification-sms.js' in script_order and bool(sms)
     order_ok = handler_loaded and sms_loaded and script_order.index('lead-handler.js') < script_order.index('verification-sms.js')
-    phone = selected_sms_phone(page)
-    selected_ok = bool(phone and len(leads) == 1 and phone['form'] is leads[0])
+    per_form = 'function initLead(form)' in handler and 'function initForm(form)' in sms
+    if per_form:
+        selected_ok = bool(leads and all(selected_sms_phone(page, form) for form in leads)
+                           and all(any(form is lead for lead in leads) for form in phone_forms))
+    else:
+        phone = selected_sms_phone(page)
+        selected_ok = bool(phone and len(leads) == 1 and phone['form'] is leads[0])
     crm = handler_loaded and bool(config_value(handler, 'leadApiUrl')) and 'function sendCrm(' in handler
     sheets = handler_loaded and bool(config_value(handler, 'googleScriptUrl')) and 'function sendToGoogleSheets(' in handler
     tracking = handler_loaded and 'function getTrackingPayload(' in handler and 'function lirePreferences(' in handler
@@ -106,8 +113,8 @@ def analyse(path):
     confirmation = handler_loaded and 'crm.result.confirmed' in handler and 'sheet.result.confirmed' in handler
     gtm = active_gtm(page.scripts)
     missing = []
-    if not len(leads) == 1:
-        missing.append(f'{len(leads)} formulaire(s) marqué(s)')
+    if not leads or (len(leads) != 1 and not per_form):
+        missing.append(f'{len(leads)} formulaire(s) marqué(s) sans gestion indépendante reconnue')
     if not handler_loaded:
         missing.append('handler non chargé')
     if not sms_loaded:

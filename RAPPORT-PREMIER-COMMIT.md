@@ -8,7 +8,7 @@ Sur **133 dossiers avec `index.html`**, 84 étaient inchangés depuis le premier
 
 **Six pages supplémentaires** ont uniquement récupéré leur conteneur GTM identifié dans leur rapport d’origine : `assurance-agriculteur-v2`, `assurance-assurance-professionnelle-iard-v2`, `assurance-protection-sociale-collective-v4`, `assurances-multirisques-v2`, `energie-v2` et `geolocalisation-v2`. Le Consent Mode par défaut précède le chargeur ; les tags configurés dans les conteneurs et la réception effective doivent être contrôlés. Cette intervention ne rend pas leurs formulaires conformes et ne prouve aucune livraison de lead.
 
-**Travail non terminé : 11 pages avec téléphone détecté restent à adapter.** L’utilisateur a défini pour chaque page `ADW-` suivi du nom du dossier comme formId et les URL CRM et Google Sheets des LP de référence ; ces configurations sont renseignées dans `CONFIGURATIONS-CRM-A-COMPLETER.csv`. Sur les 27 formulaires concernés, 16 pages sont adaptées à ce stade (dont sept précédemment fusionnées) ; les autres ne sont pas encore équipées de ces intégrations. Le chargeur `GTM-53SH7D7F` de référence a été installé sur les 27 pages selon le choix précédent de l’utilisateur, après le Consent Mode par défaut ; les tags configurés et leur déclenchement doivent être vérifiés. Cette seule installation ne valide ni le SMS ni le CRM, Sheets ou les conversions. Les autres pages comprennent notamment des remerciements et des étapes de qualification à examiner individuellement.
+**Pages de capture concernées : 27 sur 27 adaptées selon l’inventaire statique ; 0 restent à adapter.** L’utilisateur a défini pour chaque page `ADW-` suivi du nom du dossier comme formId et les URL CRM et Google Sheets des LP de référence ; ces configurations sont renseignées dans `CONFIGURATIONS-CRM-A-COMPLETER.csv`. Les pages à formulaires multiples disposent d’une vérification SMS et d’un état de soumission par formulaire. Le chargeur `GTM-53SH7D7F` de référence a été installé sur ces 27 pages après le Consent Mode par défaut ; les tags configurés et leur déclenchement doivent être vérifiés. Cette installation ne valide ni le SMS ni le CRM, Sheets ou les conversions. Les autres pages de l’inventaire comprennent notamment des remerciements et des étapes de qualification à examiner individuellement.
 
 Le code corrigé retire le simulateur local de faux succès, vérifie les réponses et la fraîcheur des requêtes SMS, filtre la catégorie URL selon le consentement et rétablit GTM `GTM-53SH7D7F` d’après le rapport de conversion. Le relais iframe ne fait confiance qu’à `https://www.comparateurpro.fr` et au domaine canonique de la page parente ; son déploiement, le chemin de l’iframe, les CORS et son fonctionnement réel doivent être vérifiés sur le domaine final.
 
@@ -16,17 +16,7 @@ Les tests utilisent des réponses simulées : aucune réception réelle SMS, CRM
 
 ## Pages avec téléphone encore à adapter
 
-- `assurance-test-telephone` (1 formulaire(s) détecté(s))
-- `assurances-professionnelles` (1 formulaire(s) détecté(s))
-- `formulaire-globale` (1 formulaire(s) détecté(s))
-- `gamme-de-rayonnage-actiflip-hd` (1 formulaire(s) détecté(s))
-- `gamme-de-rayonnage-actiflip-v4` (1 formulaire(s) détecté(s))
-- `lexus-lbx-2` (2 formulaire(s) détecté(s))
-- `rc-pro-consultant-conseil-adw` (1 formulaire(s) détecté(s))
-- `typ-formulaires-typ-secu-form` (1 formulaire(s) détecté(s))
-- `voiture-nouveau-range-rover` (2 formulaire(s) détecté(s))
-- `voiture-range-rover` (1 formulaire(s) détecté(s))
-- `volvo` (2 formulaire(s) détecté(s))
+Aucune parmi les 27 pages de capture ciblées. La validation en conditions réelles reste indispensable.
 
 ## Détail de tous les dossiers de pages
 
@@ -59,11 +49,11 @@ L’historique est basé sur la comparaison Git du **dossier entier** ; l’anal
 | [`assurance-protection-sociale-collective`](assurance-protection-sociale-collective/index.html) | Modifié après premier commit | Capture équipée précédemment ; validation réelle requise |
 | [`assurance-protection-sociale-collective-v4`](assurance-protection-sociale-collective-v4/index.html) | Inchangé au premier commit | Autre formulaire ou étape à qualifier : sans coordonnées détectées / à qualifier; chargeur GTM d’origine rétabli uniquement — configuration et réception à vérifier |
 | [`assurance-rc-pro`](assurance-rc-pro/index.html) | Modifié après premier commit | Capture équipée précédemment ; validation réelle requise |
-| [`assurance-test-telephone`](assurance-test-telephone/index.html) | Inchangé au premier commit | Capture téléphone à adapter (1 formulaire(s)); GTM de référence installé, configuration à valider |
+| [`assurance-test-telephone`](assurance-test-telephone/index.html) | Inchangé au premier commit | Capture équipée dans cette branche ; formId ADW-assurance-test-telephone ; validation réelle requise |
 | [`assurance-tns`](assurance-tns/index.html) | Modifié après premier commit | Capture équipée précédemment ; validation réelle requise |
 | [`assurance-tns-pro-v2-adw`](assurance-tns-pro-v2-adw/index.html) | Modifié après premier commit | Capture équipée précédemment ; validation réelle requise |
 | [`assurances-multirisques-v2`](assurances-multirisques-v2/index.html) | Inchangé au premier commit | Autre formulaire ou étape à qualifier : sans coordonnées détectées / à qualifier; chargeur GTM d’origine rétabli uniquement — configuration et réception à vérifier |
-| [`assurances-professionnelles`](assurances-professionnelles/index.html) | Inchangé au premier commit | Capture téléphone à adapter (1 formulaire(s)); GTM de référence installé, configuration à valider |
+| [`assurances-professionnelles`](assurances-professionnelles/index.html) | Inchangé au premier commit | Capture équipée dans cette branche ; formId ADW-assurances-professionnelles ; validation réelle requise |
 | [`automobile`](automobile/index.html) | Modifié après premier commit | Capture équipée précédemment ; validation réelle requise |
 | [`ayvens-france`](ayvens-france/index.html) | Inchangé au premier commit | Capture équipée dans cette branche ; formId ADW-ayvens-france ; validation réelle requise |
 | [`canal`](canal/index.html) | Inchangé au premier commit | Autre formulaire ou étape à qualifier : sans coordonnées détectées / à qualifier |
@@ -83,9 +73,9 @@ L’historique est basé sur la comparaison Git du **dossier entier** ; l’anal
 | [`form-panneaux-photovoltaiques`](form-panneaux-photovoltaiques/index.html) | Inchangé au premier commit | Autre formulaire ou étape à qualifier : sans coordonnées détectées / à qualifier |
 | [`form-vehicules-utilitaires`](form-vehicules-utilitaires/index.html) | Inchangé au premier commit | Autre formulaire ou étape à qualifier : sans coordonnées détectées / à qualifier |
 | [`formulaire`](formulaire/index.html) | Inchangé au premier commit | Aucun formulaire HTML détecté ; rôle à vérifier |
-| [`formulaire-globale`](formulaire-globale/index.html) | Inchangé au premier commit | Capture téléphone à adapter (1 formulaire(s)); GTM de référence installé, configuration à valider |
-| [`gamme-de-rayonnage-actiflip-hd`](gamme-de-rayonnage-actiflip-hd/index.html) | Inchangé au premier commit | Capture téléphone à adapter (1 formulaire(s)); GTM de référence installé, configuration à valider |
-| [`gamme-de-rayonnage-actiflip-v4`](gamme-de-rayonnage-actiflip-v4/index.html) | Inchangé au premier commit | Capture téléphone à adapter (1 formulaire(s)); GTM de référence installé, configuration à valider |
+| [`formulaire-globale`](formulaire-globale/index.html) | Inchangé au premier commit | Capture équipée dans cette branche ; formId ADW-formulaire-globale ; validation réelle requise |
+| [`gamme-de-rayonnage-actiflip-hd`](gamme-de-rayonnage-actiflip-hd/index.html) | Inchangé au premier commit | Capture équipée dans cette branche ; formId ADW-gamme-de-rayonnage-actiflip-hd ; validation réelle requise |
+| [`gamme-de-rayonnage-actiflip-v4`](gamme-de-rayonnage-actiflip-v4/index.html) | Inchangé au premier commit | Capture équipée dans cette branche ; formId ADW-gamme-de-rayonnage-actiflip-v4 ; validation réelle requise |
 | [`geo`](geo/index.html) | Inchangé au premier commit | Aucun formulaire HTML détecté ; rôle à vérifier |
 | [`geolocalisation`](geolocalisation/index.html) | Modifié après premier commit | Capture équipée précédemment ; validation réelle requise |
 | [`geolocalisation-de-flotte`](geolocalisation-de-flotte/index.html) | Modifié après premier commit | Capture équipée précédemment ; validation réelle requise |
@@ -94,7 +84,7 @@ L’historique est basé sur la comparaison Git du **dossier entier** ; l’anal
 | [`hyundai-tucson`](hyundai-tucson/index.html) | Inchangé au premier commit | Autre formulaire ou étape à qualifier : sans coordonnées détectées / à qualifier |
 | [`intuis`](intuis/index.html) | Inchangé au premier commit | Capture équipée dans cette branche ; formId ADW-intuis ; validation réelle requise |
 | [`lexus-lbx`](lexus-lbx/index.html) | Inchangé au premier commit | Capture équipée dans cette branche ; formId ADW-lexus-lbx ; validation réelle requise |
-| [`lexus-lbx-2`](lexus-lbx-2/index.html) | Inchangé au premier commit | Capture téléphone à adapter (2 formulaire(s)); GTM de référence installé, configuration à valider |
+| [`lexus-lbx-2`](lexus-lbx-2/index.html) | Inchangé au premier commit | Capture équipée dans cette branche ; formId ADW-lexus-lbx-2 ; validation réelle requise |
 | [`mentions-legales`](mentions-legales/index.html) | Inchangé au premier commit | Aucun formulaire HTML détecté ; rôle à vérifier |
 | [`mercedes-benz-mercedes-benz-evito`](mercedes-benz-mercedes-benz-evito/index.html) | Modifié après premier commit | Capture équipée précédemment ; validation réelle requise |
 | [`mercedes-benz-nouvel-ecitan-fourgon`](mercedes-benz-nouvel-ecitan-fourgon/index.html) | Modifié après premier commit | Capture équipée précédemment ; validation réelle requise |
@@ -117,7 +107,7 @@ L’historique est basé sur la comparaison Git du **dossier entier** ; l’anal
 | [`primagaz-v2`](primagaz-v2/index.html) | Inchangé au premier commit | Autre formulaire ou étape à qualifier : sans coordonnées détectées / à qualifier |
 | [`radius-remerciement`](radius-remerciement/index.html) | Inchangé au premier commit | Aucun formulaire HTML détecté ; rôle à vérifier |
 | [`radius-telematics-typ`](radius-telematics-typ/index.html) | Inchangé au premier commit | Aucun formulaire HTML détecté ; rôle à vérifier |
-| [`rc-pro-consultant-conseil-adw`](rc-pro-consultant-conseil-adw/index.html) | Inchangé au premier commit | Capture téléphone à adapter (1 formulaire(s)); GTM de référence installé, configuration à valider |
+| [`rc-pro-consultant-conseil-adw`](rc-pro-consultant-conseil-adw/index.html) | Inchangé au premier commit | Capture équipée dans cette branche ; formId ADW-rc-pro-consultant-conseil-adw ; validation réelle requise |
 | [`remerciement-carte-cadeau`](remerciement-carte-cadeau/index.html) | Inchangé au premier commit | Autre formulaire ou étape à qualifier : sans coordonnées détectées / à qualifier |
 | [`remerciement-panneaux-solaire`](remerciement-panneaux-solaire/index.html) | Inchangé au premier commit | Autre formulaire ou étape à qualifier : sans coordonnées détectées / à qualifier |
 | [`remerciement-ticket-restaurant`](remerciement-ticket-restaurant/index.html) | Inchangé au premier commit | Autre formulaire ou étape à qualifier : sans coordonnées détectées / à qualifier |
@@ -157,13 +147,13 @@ L’historique est basé sur la comparaison Git du **dossier entier** ; l’anal
 | [`typ-formulaires-typ-energie-form`](typ-formulaires-typ-energie-form/index.html) | Modifié après premier commit | Capture équipée précédemment ; validation réelle requise |
 | [`typ-formulaires-typ-log-entreprise`](typ-formulaires-typ-log-entreprise/index.html) | Inchangé au premier commit | Autre formulaire ou étape à qualifier : sans coordonnées détectées / à qualifier |
 | [`typ-formulaires-typ-panneaux-form`](typ-formulaires-typ-panneaux-form/index.html) | Modifié après premier commit | Capture équipée précédemment ; validation réelle requise |
-| [`typ-formulaires-typ-secu-form`](typ-formulaires-typ-secu-form/index.html) | Inchangé au premier commit | Capture téléphone à adapter (1 formulaire(s)); GTM de référence installé, configuration à valider |
+| [`typ-formulaires-typ-secu-form`](typ-formulaires-typ-secu-form/index.html) | Inchangé au premier commit | Capture équipée dans cette branche ; formId ADW-typ-formulaires-typ-secu-form ; validation réelle requise |
 | [`typ-formulaires-vehicules-thank-you-page`](typ-formulaires-vehicules-thank-you-page/index.html) | Inchangé au premier commit | Autre formulaire ou étape à qualifier : sans coordonnées détectées / à qualifier |
 | [`typ-ticket-restaurant`](typ-ticket-restaurant/index.html) | Inchangé au premier commit | Autre formulaire ou étape à qualifier : sans coordonnées détectées / à qualifier |
 | [`une-rentree-sous-le-signe-du-pouvoir-d-achat`](une-rentree-sous-le-signe-du-pouvoir-d-achat/index.html) | Modifié après premier commit | Capture équipée précédemment ; validation réelle requise |
 | [`vehicules-de-societe-hd`](vehicules-de-societe-hd/index.html) | Modifié après premier commit | Capture équipée précédemment ; validation réelle requise |
 | [`vehicules-professionnel-v2`](vehicules-professionnel-v2/index.html) | Inchangé au premier commit | Autre formulaire ou étape à qualifier : sans coordonnées détectées / à qualifier |
 | [`vehicules-utilitaires`](vehicules-utilitaires/index.html) | Ajouté après premier commit | Capture équipée précédemment ; validation réelle requise |
-| [`voiture-nouveau-range-rover`](voiture-nouveau-range-rover/index.html) | Inchangé au premier commit | Capture téléphone à adapter (2 formulaire(s)); GTM de référence installé, configuration à valider |
-| [`voiture-range-rover`](voiture-range-rover/index.html) | Inchangé au premier commit | Capture téléphone à adapter (1 formulaire(s)); GTM de référence installé, configuration à valider |
-| [`volvo`](volvo/index.html) | Inchangé au premier commit | Capture téléphone à adapter (2 formulaire(s)); GTM de référence installé, configuration à valider |
+| [`voiture-nouveau-range-rover`](voiture-nouveau-range-rover/index.html) | Inchangé au premier commit | Capture équipée dans cette branche ; formId ADW-voiture-nouveau-range-rover ; validation réelle requise |
+| [`voiture-range-rover`](voiture-range-rover/index.html) | Inchangé au premier commit | Capture équipée dans cette branche ; formId ADW-voiture-range-rover ; validation réelle requise |
+| [`volvo`](volvo/index.html) | Inchangé au premier commit | Capture équipée dans cette branche ; formId ADW-volvo ; validation réelle requise |
