@@ -50,10 +50,12 @@
       var data = {};
       if (text) {
         try { data = JSON.parse(text); }
-        catch (e) { data = { message: String(text).slice(0, 500) }; }
+        catch (e) { return { status: response.status, ok: response.ok, data: { message: String(text).slice(0, 500) }, validJson: false }; }
       }
+      var validJson = !!text && !!data && typeof data === 'object' &&
+        !Array.isArray(data) && Object.keys(data).length > 0;
       if (!data || typeof data !== 'object') data = {};
-      return { status: response.status, ok: response.ok, data: data };
+      return { status: response.status, ok: response.ok, data: data, validJson: validJson };
     }, function () {
       return { status: response.status, ok: response.ok, data: {} };
     });
@@ -67,9 +69,9 @@
   }
 
   function succeeded(result) {
-    if (!result.ok || statusCode(result) >= 400) return false;
+    if (!result.ok || !result.validJson || statusCode(result) >= 400) return false;
     var data = result.data || {};
-    if (data.ok === false || data.success === false) return false;
+    if (data.ok === false || data.success === false || data.error === true) return false;
     var state = String(data.status || data.statut || '').toLowerCase();
     return !/^(error|erreur|ko|failed|fail)$/.test(state);
   }
@@ -84,6 +86,7 @@
       502: 'L’envoi du SMS a échoué. Réessayez dans un instant.'
     };
     var status = statusCode(result);
+    if (result.ok && !result.validJson) return 'Réponse invalide du service SMS. Réessayez.';
     return (result.data && (result.data.message || result.data.error)) ||
       fallback[status] || 'Une erreur est survenue.';
   }
@@ -169,6 +172,7 @@
     var requestedPhone = '';
     var verifiedPhone = '';
     var countdownTimer = null;
+    var requestGeneration = 0;
 
     function currentPhone() { return normalizePhone(phone.value); }
 
@@ -201,12 +205,14 @@
     }
 
     function resetAll(note) {
+      requestGeneration += 1;
       verifiedPhone = '';
       requestedPhone = '';
       flag.value = 'non';
       stopCountdown();
       codeWrap.hidden = true;
       codeInput.value = '';
+      checkButton.disabled = false;
       sendButton.hidden = false;
       sendButton.disabled = false;
       sendButton.textContent = 'Recevoir le code';
@@ -220,9 +226,11 @@
         return;
       }
       requestedPhone = number;
+      var generation = ++requestGeneration;
       sendButton.disabled = true;
       say('Envoi en cours…', true);
       smsRequest({ action: 'envoyer_code', telephone: number }).then(function (result) {
+        if (generation !== requestGeneration || currentPhone() !== number || requestedPhone !== number) return;
         if (succeeded(result)) {
           codeWrap.hidden = false;
           codeInput.value = '';
@@ -245,6 +253,7 @@
           sendButton.textContent = 'Recevoir le code';
         }
       }).catch(function () {
+        if (generation !== requestGeneration || currentPhone() !== number || requestedPhone !== number) return;
         say('Connexion impossible au service SMS. Vérifiez votre connexion puis réessayez.');
         sendButton.disabled = false;
         sendButton.textContent = 'Recevoir le code';
@@ -257,8 +266,10 @@
       if (!MOBILE_RE.test(number)) return say('Vérifiez le numéro de téléphone saisi.');
       if (number !== requestedPhone) return say('Le numéro a changé. Demandez un nouveau code.');
       if (code.length !== 6) return say('Le code comporte 6 chiffres.');
+      var generation = requestGeneration;
       checkButton.disabled = true;
       smsRequest({ action: 'verifier_code', telephone: number, code: code }).then(function (result) {
+        if (generation !== requestGeneration || currentPhone() !== number || requestedPhone !== number) return;
         checkButton.disabled = false;
         if (succeeded(result)) {
           verifiedPhone = number;
@@ -280,6 +291,7 @@
           }
         }
       }).catch(function () {
+        if (generation !== requestGeneration || currentPhone() !== number || requestedPhone !== number) return;
         checkButton.disabled = false;
         say('Connexion impossible au service de vérification. Réessayez.');
       });
@@ -311,7 +323,7 @@
       version: VERSION,
       estVerifie: function (number) {
         var n = number != null ? normalizePhone(number) : currentPhone();
-        return !!verifiedPhone && n === verifiedPhone;
+        return !!verifiedPhone && currentPhone() === verifiedPhone && n === verifiedPhone;
       },
       numeroVerifie: function () { return verifiedPhone; },
       afficher: function () {
