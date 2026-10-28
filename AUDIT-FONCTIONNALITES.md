@@ -1,5 +1,8 @@
 # Audit des fonctionnalités par page
 
+> **État historique :** ce rapport décrit la version précédant les corrections en cours. Voir [RAPPORT-PREMIER-COMMIT.md](RAPPORT-PREMIER-COMMIT.md) pour les corrections et le travail restant.
+
+
 Date de l'audit : 2026-10-28 — branche et fichiers locaux. Génération : `python3 tools/audit_fonctionnalites.py`.
 
 ## Résumé

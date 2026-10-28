@@ -1,5 +1,8 @@
 # Déploiement des fonctionnalités de référence — état réel
 
+> **État historique avant le réexamen en cours :** voir [RAPPORT-PREMIER-COMMIT.md](RAPPORT-PREMIER-COMMIT.md) pour les corrections et le travail restant. Les nombres et résultats ci-dessous décrivent la version auditée précédemment.
+
+
 ## Bilan
 
 **L'application à l'ensemble du dépôt n'est pas terminée et aucune validation réseau réelle n'a été effectuée.** L'inventaire statique compte 133 pages HTML de premier niveau. Au total, **49 dossiers** contiennent un gestionnaire autonome et un module SMS : les deux références, quatre pages d'assurance déjà adaptées, puis 43 pages supplémentaires. Les 28 dossiers listés ci-dessous comportent encore un ou plusieurs formulaires avec téléphone détecté et ne sont pas adaptés. Les autres pages sans téléphone détecté comprennent notamment du contenu, des formulaires de qualification, de consentement, des remerciements et des iframes ; elles nécessitent une revue de parcours, et leur absence dans la liste ne signifie pas qu'elles sont fonctionnelles.
