@@ -76,7 +76,7 @@ def selected_sms_phone(page):
         if field['tag'] != 'input' or not field['name']:
             continue
         n = re.sub(r'[\s_-]+', '', field['name'].lower())
-        if n in ('telephone', 'phone', 'tel') or re.fullmatch(r'telephone\d+', n):
+        if n in ('telephone', 'phone', 'tel', 'tlphone') or re.fullmatch(r'telephone\d+', n):
             return field
     return next((field for field in page.inputs if field['tag'] == 'input' and field['type'] == 'tel'), None)
 
