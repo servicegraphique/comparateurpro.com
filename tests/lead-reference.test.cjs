@@ -118,7 +118,7 @@ for (const site of ['LP_reference', 'vehicules-utilitaires', 'assurance-tns', 'a
   });
 }
 
-for (const site of ['assurance-tns', 'assurance-tns-pro-v2-adw', 'assurance-consultants-societe-conseil', 'assurance-agriculteur', ...batch.map(x => x.site)]) test(`${site} : bundle réel chargé et soumission jQuery`, async () => {
+for (const site of ['LP_reference', 'vehicules-utilitaires', 'assurance-tns', 'assurance-tns-pro-v2-adw', 'assurance-consultants-societe-conseil', 'assurance-agriculteur', ...batch.map(x => x.site)]) test(`${site} : bundle réel chargé et soumission jQuery`, async () => {
   const { VirtualConsole } = require('jsdom');
   const errors = [];
   const virtualConsole = new VirtualConsole();
