@@ -27,6 +27,17 @@ class AuditParserTests(unittest.TestCase):
         page.feed('<form><input name="portable" type="tel"></form>')
         self.assertEqual(selected_sms_phone(page)['name'], 'portable')
 
+    def test_selection_independante_par_formulaire(self):
+        page = Page()
+        page.feed('<form><input name="telephone"></form><form><input name="code_postal" type="tel"><input name="telephone-2"></form>')
+        self.assertEqual(selected_sms_phone(page, page.forms[0])['name'], 'telephone')
+        self.assertEqual(selected_sms_phone(page, page.forms[1])['name'], 'telephone-2')
+
+    def test_repli_n_utilise_pas_le_code_postal(self):
+        page = Page()
+        page.feed('<form><input name="code_postal" type="tel"></form>')
+        self.assertIsNone(selected_sms_phone(page, page.forms[0]))
+
 
 if __name__ == '__main__':
     unittest.main()
